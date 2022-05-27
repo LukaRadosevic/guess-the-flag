@@ -1,0 +1,1144 @@
+; CREATED BY LUKA RADOSEVIC
+; RUN AT 50kHz CLOCK SPEED
+
+JMP main
+JMP isr
+
+; Declaring variables
+vsync: DW 0
+waitTime: DW 1500
+score:	DB 0
+freeSkip: DB 1
+nextCharVal: DW 0
+; Declaring strings
+s1: DB "   Welcome to   "
+	DB 0
+s2: DB " Guess The Flag "
+	DB 0
+s3: DB "  The game is   "
+	DB 0
+s4: DB "   played by    "
+	DB 0
+s5: DB "   pressing 1   "
+	DB 0
+s6: DB "  or 2 on your  "
+	DB 0
+s7: DB "    keyboard.   "
+	DB 0
+s11: DB " 1 free skip is "
+     DB 0
+s12: DB "  available by  "
+     DB 0
+s13: DB "   pressing 9.  "
+     DB 0
+s8:  DB "   GOOD LUCK!   "
+	DB 0
+s9: DB "  Press any key "
+	DB 0
+s10: DB "  to continue.  "
+	 DB 0
+s14s:	DB " ############## "
+		DB 0
+s10s:	DB "   ##########   "
+		DB 0
+s6s:	DB "     ######     "
+		DB 0
+n9s:	DB "######### "
+		DB 0
+n6n:	DB "######"
+		DB 0
+n16n:	DB "################"
+		DB 0
+go1:	DB " Oh no! That is "
+		DB 0
+go2:	DB "     not the    "
+		DB 0
+go3:	DB " correct answer "
+		DB 0
+go4:	DB "   GAME OVER!   "
+		DB 0
+win1:	DB "  You have won  "
+		DB 0
+win2: 	DB " Guess The Flag "
+		DB 0
+win3:	DB "CONGRATULATIONS!"
+		DB 0
+yourScoreStr:	DB " Your score is: "
+				DB 0
+emptyStr:		DB "                "
+				DB 0
+germanyStr: 	DB "GERMANY       "
+				DB 0
+icelandStr: 	DB "ICELAND       "
+				DB 0
+sloveniaStr: 	DB "SLOVENIA      "
+				DB 0
+estoniaStr: 	DB "ESTONIA       "
+				DB 0
+romaniaStr:		DB "ROMANIA       "
+				DB 0
+ukraineStr:		DB "UKRAINE       "
+				DB 0
+polandStr:		DB "POLAND        "
+				DB 0
+indonesiaStr:	DB "INDONESIA     "
+				DB 0
+belgiumStr:		DB "BELGIUM       "
+				DB 0
+drcongoStr:		DB "DR CONGO      "
+				DB 0
+nigeriaStr:		DB "NIGERIA       "
+				DB 0
+chadStr:		DB "CHAD          "
+				DB 0
+beninStr:		DB "BENIN         "
+				DB 0
+seychellesStr:	DB "SEYCHELLES    "
+				DB 0
+switzerlandStr: DB "SWITZERLAND   "
+				DB 0
+maltaStr:		DB "MALTA         "
+				DB 0
+iranStr:		DB "IRAN          "
+				DB 0
+iraqStr:		DB "IRAQ          "
+				DB 0
+; Making custom character for Iran flag emblem
+q1:		DW 0x0000
+		DW 0x0000
+        DW 0x0011
+        DW 0x001F
+        DW 0x018C
+        DW 0x0621
+        DW 0x1C43
+        DW 0x31C3
+        DW 0x71C3
+        DW 0x7383
+        DW 0x7383
+        DW 0x7383
+        DW 0x7383
+        DW 0x7383
+        DW 0x7383
+        DW 0x7383
+q2:		DW 0x0000
+		DW 0x0000
+        DW 0x1000
+        DW 0xF000
+        DW 0x6300
+        DW 0x08C0
+        DW 0x8470
+        DW 0x8638
+        DW 0x8718
+        DW 0x879C
+        DW 0x839C
+        DW 0x839C
+        DW 0x839C
+        DW 0x839C
+        DW 0x839C
+        DW 0x839C
+q3:		DW 0x7383
+		DW 0x7383
+        DW 0x7383
+        DW 0x73C3
+        DW 0x73C3
+        DW 0x39E3
+        DW 0x18F3
+        DW 0x0C7B
+		DW 0x021F
+        DW 0x010F
+        DW 0x0007
+        DW 0x001F
+        DW 0x007F
+        DW 0x0003
+        DW 0x0001
+        DW 0x0000
+q4:     DW 0x839C
+        DW 0x839C
+        DW 0x839C
+        DW 0x879C
+        DW 0x8718
+        DW 0x8F38
+        DW 0x9E30
+		DW 0xBC60
+        DW 0xF860
+        DW 0xF080
+        DW 0xC000
+        DW 0xF000
+        DW 0xFC00
+        DW 0x8000
+        DW 0x0000
+        DW 0x0000
+; Interrupt Service Routine
+isr:
+PUSH A	; Push A to stack
+IN 1
+AND A, 0x0004	; AND mask to get graphics interrupt status
+CMP A, 4	; Check if graphics interrupt status is true
+JNE notGraphicsInterrupt:
+MOV [vsync], 1	; Trigger VSync variable
+; Clear interrupt
+MOV A, 4
+OUT 2
+JMP leaveIsr	; leave isr after finishing interrupt
+notGraphicsInterrupt:
+IN 6	; Take input and clear KBDSTATUS
+CMP A, '1'	; If 1 return 1 in B
+JNE check2
+MOV B, 1
+JMP continueToClear
+check2:
+CMP A, '2'	; If 2 return 2 in B
+JNE checkFree
+MOV B, 2
+JMP continueToClear
+checkFree:
+CMP A, '9'
+JNE checkReset
+MOVB BL, [freeSkip]
+CMPB BL, 1
+JNE continueToClear
+DECB BL
+MOVB [freeSkip], BL
+MOV B, 3
+checkReset:
+CMP A, 'r'
+JNE continueToClear
+MOVB AL, [score]
+CMP A, 0
+JNE continueToClear
+MOV B, 4
+continueToClear:
+; Clear interrupt
+MOV A, 1
+OUT 2
+leaveIsr:
+POP A	; Pop A from stack
+IRET	; Return from ISR
+
+; Function for making a 16x16 block as a character
+fullCharacterBlock:
+; Getting VRAM address for # character
+MOV A, '#'	; Take code for #
+MUL 32			; Multiply by 32 because a character takes 32 bytes
+ADD A, 0x8000	; Add 0x8000 because that is starting address for charactes in VRAM
+
+MOV B, A		; Saving address in register B which will be used for next character
+
+; Getting VRAM address for character after #
+ADD B, 0x0020	; Next character address will be 32 bytes higher than previous, 20 hex = 32 dec
+
+; Loop to change bits of '#' to a full block
+changeBitsLoop:
+CMP A, B	; Check if current address is address of next character
+JE exitLoop
+OUT 8	; Change VIDADDR register to current address in register A
+MOV A, 0xFFFF	; Value 0xFFFF because that is a full block
+OUT 9	; Give value to VIDDATA
+IN 8	; Take back current address
+ADD A, 2	; Increase current address by 2 to get to next spot in memory
+JMP changeBitsLoop	; Jump back to the start of the loop
+exitLoop:
+RET	; End of function fullCharacterBlock
+
+; Function for making custom emblem for Iran
+iranEmblem:
+MUL 32
+ADD A, 0x8000
+MOV B, A
+ADD B, 0x0020
+MOV [nextCharVal], B
+loop:
+CMP A, [nextCharVal]
+JE exit
+OUT 8
+MOV A, [C]
+OUT 9
+IN 8
+ADD A, 2
+ADD C, 2
+JMP loop
+exit:
+RET
+
+; VSync function for smooth intro text
+waitNextFrame:
+PUSH A	; Push A to stack
+waitNextFrameLoop:
+	; Check VSync
+	MOV A, [vsync]
+	CMP A, 0
+	JE waitNextFrameLoop	; If VSync is still false keep looping
+    
+	MOV [vsync], 0	; Reset VSync to false
+	DEC C	; Count recieved frame
+	CMP C, 0	; If we recieved all frames exit function
+	JE exitNextFrameLoop
+	JMP waitNextFrameLoop	; Repeat loop if we are still waiting for frames
+exitNextFrameLoop:
+POP A	; Pop A from stack
+RET	; Return from waitNextFrame
+
+; Function for printing a string on graphic display
+; B = color of string
+; C = address of string
+; D = position of printing
+printString:
+PUSH C
+PUSH D
+	printStringLoop:
+	; Getting address of where to print
+	MOV A, D
+	OUT 8
+    ; Getting char to print
+	MOVB AH, [C]
+	CMPB AH, 0	; If end of string then exit
+	JE exitPrintString
+	MOVB AL, BL	; Set char color to given color
+	OUT 9
+	INC C	; Get next char address
+	ADD D, 2	; Get next position to print
+	JMP printStringLoop; Repeat loop
+exitPrintString:
+POP D
+POP C
+RET	; Return from printString
+
+; Function for printing a string on graphic display vertically
+; B = color of string
+; C = address of string
+; D = position of printing
+printStringVer:
+PUSH C
+PUSH D
+	printStringVerLoop:
+	; Getting address of where to print
+	MOV A, D
+	OUT 8
+    ; Getting char to print
+	MOVB AH, [C]
+	CMPB AH, 0	; If end of string then exit
+	JE exitPrintStringVer
+	MOVB AL, BL	; Set char color to given color
+	OUT 9
+	INC C	; Get next char address
+	ADDB DH, 1	; Get next position to print
+	JMP printStringVerLoop; Repeat loop
+exitPrintStringVer:
+POP D
+POP C
+RET	; Return from printString
+
+; Same as printString just random colors for characters
+printStringRainbow:
+PUSH B
+	printStringRainbowLoop:
+	; Getting address of where to print
+	MOV A, D
+	OUT 8
+    ; Getting char to print
+	MOVB BH, [C]
+	CMPB BH, 0	; If end of string then exit
+	JE exitPrintStringRainbow
+	IN 10	; Get random hex number
+    AND A, 0x00FC	; AND mask it to get 8bit number without last 2 bits
+    MOVB BL, AL	; Put it into lower byte to get color
+    MOV A, B	; Return into register A to print
+	OUT 9
+	INC C	; Get next char address
+	ADD D, 2	; Get next position to print
+	JMP printStringRainbowLoop	; Repeat loop
+exitPrintStringRainbow:
+POP B
+RET	; Return from printStringRainbow
+
+; Function for printing a string in text display 1
+; C = Input string
+printStringText1:
+	; Setting initial address
+	MOV A, 0x1000
+    MOVB [A], '1'
+    ADD A, 2
+	printStringTextLoop1:
+    MOVB BL, [C]	; Take value at given input address
+	CMPB BL, 0	; If end of string then exit
+	JE exitPrintStringText1
+	MOVB [A], BL	; Put value to text display
+    INC A	; Increase text display address
+    INC C	; Increase input address
+	JMP printStringTextLoop1	; Repeat loop
+exitPrintStringText1:
+RET	; Return from printStringText1
+
+; Function for printing a string in text display 2
+; C = Input string
+printStringText2:
+	; Setting initial address
+	MOV A, 0x1010
+    MOVB [A], '2'
+    ADD A, 2
+	printStringTextLoop2:
+    MOVB BL, [C]	; Take value at given input address
+	CMPB BL, 0	; If end of string then exit
+	JE exitPrintStringText2
+	MOVB [A], BL	; Put value to text display
+    INC A	; Increase text display address
+    INC C	; Increase input address
+	JMP printStringTextLoop2	; Repeat loop
+exitPrintStringText2:
+RET	; Return from printStringText2
+
+; Main function
+main:
+MOV SP, 0x0FFF	; Set stack pointer
+MOV A, 1	; Setting VIDMODE register to text mode
+OUT 7
+
+CALL fullCharacterBlock	; Switching # symbol for a full block
+
+; Enable graphics and keyboard interrupts
+MOV A, 4
+OUT 0
+
+STI	; Enable interrupts
+
+; Setting background color
+MOV A, 0xA300
+OUT 8
+MOV A, 187
+OUT 9
+
+; Printing out intro screen text
+; B = Color
+; D = Address of printing position
+; C = String address
+MOVB BL, 0xFF
+
+MOV D, 0x1000
+MOV C, s1
+CALL printString
+
+MOV D, 0x1100
+MOV C, s2
+CALL printStringRainbow
+
+MOV D, 0x1300
+MOV C, s3
+CALL printString
+
+MOV D, 0x1400
+MOV C, s4
+CALL printString
+
+MOV D, 0x1500
+MOV C, s5
+CALL printString
+
+MOV D, 0x1600
+MOV C, s6
+CALL printString
+
+MOV D, 0x1700
+MOV C, s7
+CALL printString
+
+MOV D, 0x1800
+MOV C, s11
+CALL printString
+
+MOV D, 0x1900
+MOV C, s12
+CALL printString
+
+MOV D, 0x1A00
+MOV C, s13
+CALL printString
+
+MOV D, 0x1C00
+MOV C, s8
+CALL printString
+
+; Setting VIDADDR to vertical scroll
+MOV A, 0xA304
+OUT 8
+
+; Moving display for animated intro text
+MOV B, 0
+offsetLoop:
+IN 5	; Check if key has been pressed
+CMP A, 0	; If above 0
+JNE keyPressed
+MOV A, B
+OUT 9
+INC A
+CMP A, 470
+JE exitOffsetLoop
+MOV C, 2	; Change speed for intro
+CALL waitNextFrame
+MOV B, A
+JMP offsetLoop
+exitOffsetLoop:
+
+; Printing press any key to continue strings
+MOVB BL, 0xFF
+MOV D, 0x2500
+MOV C, s9
+CALL printString
+; ^
+MOV D, 0x2600
+MOV C, s10
+CALL printString
+
+keyPressedLoop:
+IN 5	; Check if key has been pressed
+CMP A, 0	; If above 0
+JNE keyPressed
+JMP keyPressedLoop
+
+keyPressed:
+IN 6	; Reset keyboard status
+JMP skipReset
+reset:
+; Clearing text display in case of reset
+MOV A, 0x1000
+MOV C, [waitTime]
+clearTextLoop:
+CMP A, 0x1020
+JE resetWait
+MOV [A], 0
+ADD A, 2
+JMP clearTextLoop
+resetWait:
+CMP C, 0
+JE resetExit
+DEC C
+JMP resetWait
+resetExit:
+skipReset:
+
+; Setting VIDADDR to vertical scroll
+MOV A, 0xA304
+OUT 8
+MOV A, 0	; Going back to top
+OUT 9
+; Setting VIDADDR to horizontal scroll
+MOV A, 0xA302
+OUT 8
+MOV A, 256	; Moving to blank screen
+OUT 9
+
+MOV A, 1	; Enabling keyboard interrupts
+OUT 0
+
+germany:
+MOV C, s14s
+MOV D, 0x0520
+MOVB BL, 0x00
+CALL printString
+INCB DH
+CALL printString
+MOVB BL, 0xE0
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+MOVB BL, 0xFC
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+MOV C, germanyStr
+CALL printStringText1
+MOV C, icelandStr
+CALL printStringText2
+
+gerLoop:
+CMP B, 2
+JE gameOver
+CMP B, 1
+JE gerCont
+CMP B, 3
+JE gerCont
+JMP gerLoop
+gerCont:
+MOVB CL, [score]
+INCB CL
+MOVB [score], CL
+MOV C, [waitTime]
+gerWait:
+CMP C, 0
+JE estonia	;
+DEC C
+JMP gerWait
+
+estonia:
+MOV C, s14s
+MOV D, 0x0520
+MOVB BL, 75
+CALL printString
+INCB DH
+CALL printString
+MOVB BL, 0xFF
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+MOVB BL, 0x00
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+MOV C, sloveniaStr
+CALL printStringText1
+MOV C, estoniaStr
+CALL printStringText2
+
+estLoop:
+CMP B, 1
+JE gameOver
+CMP B, 2
+JE estCont
+CMP B, 3
+JE estCont
+JMP estLoop
+estCont:
+MOVB CL, [score]
+INCB CL
+MOVB [score], CL
+MOV C, [waitTime]
+estWait:
+CMP C, 0
+JE ukraine
+DEC C
+JMP estWait
+
+ukraine:
+MOV C, s14s
+MOV D, 0x0520
+MOVB BL, 43
+CALL printString
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+MOVB BL, 248
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+MOV C, romaniaStr
+CALL printStringText1
+MOV C, ukraineStr
+CALL printStringText2
+
+ukrLoop:
+CMP B, 1
+JE gameOver
+CMP B, 2
+JE ukrCont
+CMP B, 3
+JE ukrCont
+JMP ukrLoop
+ukrCont:
+MOVB CL, [score]
+INCB CL
+MOVB [score], CL
+MOV C, [waitTime]
+ukrWait:
+CMP C, 0
+JE poland
+DEC C
+JMP ukrWait
+
+poland:
+MOV C, s14s
+MOV D, 0x0520
+MOVB BL, 0xFF
+CALL printString
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+MOVB BL, 192
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+MOV C, polandStr
+CALL printStringText1
+MOV C, indonesiaStr
+CALL printStringText2
+
+polLoop:
+CMP B, 2
+JE gameOver
+CMP B, 1
+JE polCont
+CMP B, 3
+JE polCont
+JMP polLoop
+polCont:
+MOVB CL, [score]
+INCB CL
+MOVB [score], CL
+MOV C, [waitTime]
+polWait:
+CMP C, 0
+JE belgium
+DEC C
+JMP polWait
+
+belgium:
+; Setting VIDADDR to horizontal scroll
+MOV A, 0xA302
+OUT 8
+MOV A, 512	; Moving to blank screen
+OUT 9
+
+MOV C, s6s
+MOV D, 0x0144
+MOVB BL, 0
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+MOVB BL, 0xFC
+ADD D, 2
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+MOVB BL, 0xE0
+ADD D, 2
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+MOV C, drcongoStr
+CALL printStringText1
+MOV C, belgiumStr
+CALL printStringText2
+
+belLoop:
+CMP B, 1
+JE gameOver
+CMP B, 2
+JE belCont
+CMP B, 3
+JE belCont
+JMP belLoop
+belCont:
+MOVB CL, [score]
+INCB CL
+MOVB [score], CL
+MOV C, [waitTime]
+belWait:
+CMP C, 0
+JE nigeria
+DEC C
+JMP belWait
+
+
+nigeria:
+MOV C, s6s
+MOV D, 0x0144
+MOVB BL, 52
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+MOVB BL, 0xFF
+ADD D, 2
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+MOVB BL, 52
+ADD D, 2
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+MOV C, nigeriaStr
+CALL printStringText1
+MOV C, chadStr
+CALL printStringText2
+
+nigLoop:
+CMP B, 2
+JE gameOver
+CMP B, 1
+JE nigCont
+CMP B, 3
+JE nigCont
+JMP nigLoop
+nigCont:
+MOVB CL, [score]
+INCB CL
+MOVB [score], CL
+MOV C, [waitTime]
+nigWait:
+CMP C, 0
+JE benin
+DEC C
+JMP nigWait
+
+benin:
+; Setting VIDADDR to horizontal scroll
+MOV A, 0xA302
+OUT 8
+MOV A, 256	; Moving to vertical flag screen
+OUT 9
+
+MOV C, s6s
+MOV D, 0x0022
+MOVB BL, 12
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+MOV C, n9s
+MOVB BL, 0xFC
+MOV D, 0x052C
+CALL printString
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+MOVB BL, 0xE0
+MOV D, 0x082C
+CALL printString
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+MOV C, beninStr
+CALL printStringText1
+MOV C, seychellesStr
+CALL printStringText2
+
+benLoop:
+CMP B, 2
+JE gameOver
+CMP B, 1
+JE benCont
+CMP B, 3
+JE benCont
+JMP benLoop
+benCont:
+MOVB CL, [score]
+INCB CL
+MOVB [score], CL
+MOV C, [waitTime]
+benWait:
+CMP C, 0
+JE switzerland
+DEC C
+JMP benWait
+
+switzerland:
+; Setting VIDADDR to horizontal scroll
+MOV A, 0xA302
+OUT 8
+MOV A, 768	; Moving to blank screen
+OUT 9
+
+MOV C, s10s
+MOV D, 0x0360
+MOVB BL, 0xE0
+CALL printString
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+MOV C, n6n
+MOV D, 0x076A
+MOVB BL, 0xFF
+CALL printString
+INCB DH
+CALL printString
+MOV D, 0x056E
+CALL printStringVer
+ADD D, 2
+CALL printStringVer
+MOV C, maltaStr
+CALL printStringText1
+MOV C, switzerlandStr
+CALL printStringText2
+
+swiLoop:
+CMP B, 1
+JE gameOver
+CMP B, 2
+JE swiCont
+CMP B, 3
+JE swiCont
+JMP swiLoop
+swiCont:
+MOVB CL, [score]
+INCB CL
+MOVB [score], CL
+MOV C, [waitTime]
+swiWait:
+CMP C, 0
+JE iran
+DEC C
+JMP swiWait
+
+iran:
+; Making custom character for Iran emblem
+MOV A, '$'
+MOV C, q1
+CALL iranEmblem
+MOV A, '%'
+MOV C, q2
+CALL iranEmblem
+MOV A, '^'
+MOV C, q3
+CALL iranEmblem
+MOV A, '&'
+MOV C, q4
+CALL iranEmblem
+
+; Setting VIDADDR to horizontal scroll
+MOV A, 0xA302
+OUT 8
+MOV A, 256	; Moving to blank screen
+OUT 9
+
+MOV C, s14s
+MOV D, 0x0520
+MOVB BL, 52
+CALL printString
+INCB DH
+CALL printString
+MOVB BL, 0xFF
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+MOVB BL, 0xE0
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+MOV A, 0x072E
+OUT 8
+MOVB AH, '$'
+MOVB AL, 0xE0
+OUT 9
+MOV A, 0x0730
+OUT 8
+MOVB AH, '%'
+MOVB AL, 0xE0
+OUT 9
+MOV A, 0x0830
+OUT 8
+MOVB AH, '&'
+MOVB AL, 0xE0
+OUT 9
+MOV A, 0x082E
+OUT 8
+MOVB AH, '^'
+MOVB AL, 0xE0
+OUT 9
+; Changing background color to white
+MOV A, 0xA300
+OUT 8
+MOV A, 0xFF
+OUT 9
+MOV C, n16n
+MOV D, 0x0020
+MOVB BL, 187
+CALL printString
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+MOV D, 0x0F20
+CALL printString
+DECB DH
+CALL printString
+DECB DH
+CALL printString
+DECB DH
+CALL printString
+DECB DH
+CALL printString
+MOV C, n6n
+MOV D, 0x0520
+CALL printStringVer
+MOV D, 0x053E
+CALL printStringVer
+MOV C, iranStr
+CALL printStringText1
+MOV C, iraqStr
+CALL printStringText2
+
+iraLoop:
+CMP B, 2
+JE gameOver
+CMP B, 1
+JE iraCont
+CMP B, 3
+JE iraCont
+JMP iraLoop
+iraCont:
+MOVB CL, [score]
+INCB CL
+MOVB [score], CL
+MOV C, [waitTime]
+iraWait:
+CMP C, 0
+JE win
+DEC C
+JMP iraWait
+
+gameOver:
+; Printing game-over strings
+MOVB BL, 0xFF
+MOV D, 0x2B00
+MOV C, go1
+CALL printString
+MOVB BL, 0xFF
+MOV D, 0x2C00
+MOV C, go2
+CALL printString
+MOVB BL, 0xFF
+MOV D, 0x2D00
+MOV C, go3
+CALL printString
+MOVB BL, 0xFF
+MOV D, 0x2F00
+MOV C, go4
+CALL printString
+
+; Setting VIDADDR to vertical scroll
+MOV A, 0xA304
+OUT 8
+MOV A, 590	; Moving to game over text
+OUT 9
+; Setting VIDADDR to horizontal scroll
+MOV A, 0xA302
+OUT 8
+MOV A, 0	; Going all the way left
+OUT 9
+JMP endScore
+
+win:
+; Printing winning strings
+MOVB BL, 0xFF
+MOV D, 0x2B20
+MOV C, win1
+CALL printString
+MOVB BL, 0xFF
+MOV D, 0x2C20
+MOV C, win2
+CALL printString
+MOVB BL, 0xFF
+MOV D, 0x2E20
+MOV C, win3
+CALL printString
+
+; Setting VIDADDR to vertical scroll
+MOV A, 0xA304
+OUT 8
+MOV A, 590	; Moving to game over text
+OUT 9
+; Setting VIDADDR to horizontal scroll
+MOV A, 0xA302
+OUT 8
+MOV A, 256	; Getting horizontal position
+OUT 9
+
+endScore:
+; Returning background color
+MOV A, 0xA300
+OUT 8
+MOV A, 187
+OUT 9
+; Printing score
+MOV C, yourScoreStr
+	MOV A, 0x1000	; Setting initial address
+	printScore1:
+    MOVB BL, [C]	; Take value at given input address
+	CMPB BL, 0	; If end of string then exit
+	JE exitPrintScore1
+	MOVB [A], BL	; Put value to text display
+    INC A	; Increase text display address
+    INC C	; Increase input address
+	JMP printScore1	; Repeat loop
+exitPrintScore1:
+MOV C, emptyStr
+	MOV A, 0x1010	; Setting initial address
+	printScore2:
+    MOVB BL, [C]	; Take value at given input address
+	CMPB BL, 0	; If end of string then exit
+	JE exitPrintScore2
+	MOVB [A], BL	; Put value to text display
+    INC A	; Increase text display address
+    INC C	; Increase input address
+	JMP printScore2	; Repeat loop
+exitPrintScore2:
+MOV A, 0x1016
+MOVB BL, [score]
+ADDB BL, 48
+MOVB [A], BL
+INC A
+MOVB [A], '/' 
+INC A
+MOVB [A], '9'
+
+MOVB [score], 0
+MOVB [freeSkip], 1
+
+resetLoop:
+CMP B, 4
+JE reset
+JMP resetLoop
+
+HLT	; End program
