@@ -577,12 +577,12 @@ MOVB BL, 75
 CALL printString
 INCB DH
 CALL printString
-MOVB BL, 0xFF
-INCB DH
-CALL printString
-INCB DH
-CALL printString
 MOVB BL, 0x00
+INCB DH
+CALL printString
+INCB DH
+CALL printString
+MOVB BL, 0xFF
 INCB DH
 CALL printString
 INCB DH
